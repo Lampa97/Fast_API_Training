@@ -1,0 +1,16 @@
+[project]
+name = "fast-api-training"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi[standard]>=0.115.13",
+]
+
+[dependency-groups]
+lint = [
+    "black>=25.1.0",
+    "flake8>=7.2.0",
+    "isort>=6.0.1",
+    "mypy>=1.16.1",
+]
