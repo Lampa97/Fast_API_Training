@@ -69,3 +69,16 @@ async def get_original_url(shorten_url: str, session: SessionDep) -> RedirectRes
     if not original_url:
         raise HTTPException(status_code=404, detail="Short URL not found")
     return RedirectResponse(url=original_url.url, status_code=307)
+
+@app.delete("/{shorten_url}")
+async def delete_url(shorten_url: str, session: SessionDep) -> dict:
+    """Delete a URL based on the shortened URL."""
+    url_to_delete = session.exec(
+        select(URL).where(URL.shorten_url == shorten_url)
+    ).first()
+    if not url_to_delete:
+        raise HTTPException(status_code=404, detail="Short URL not found")
+
+    session.delete(url_to_delete)
+    session.commit()
+    return {"detail": "URL deleted successfully"}
