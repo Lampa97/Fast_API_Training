@@ -1,12 +1,13 @@
 from typing import Annotated, Sequence
 from urllib.parse import urlparse
-from api.router import router
+
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import RedirectResponse
 from sqlmodel import Session, select
-from api.models import URL
-from api.db import create_db_and_tables, get_session
 
+from api.db import create_db_and_tables, get_session
+from api.models import URL
+from api.router import router
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
@@ -15,13 +16,16 @@ app = FastAPI()
 
 app.include_router(router)
 
+
 @app.on_event("startup")
 def on_startup():
+    """Create the database and tables on startup."""
     create_db_and_tables()
 
 
 @app.post("/", status_code=status.HTTP_201_CREATED)
 def shorten_url(url: URL, session: SessionDep) -> URL:
+    """Shorten a given URL and store it in the database."""
     existing = session.exec(select(URL).where(URL.url == url.url)).first()
     if existing:
         raise HTTPException(
@@ -45,16 +49,17 @@ def shorten_url(url: URL, session: SessionDep) -> URL:
 
 @app.get("/")
 def read_urls(session: SessionDep) -> Sequence[URL]:
+    """Retrieve all stored URLs."""
     urls = session.exec(select(URL)).all()
     return urls
 
 
 @app.get("/{shorten_url}")
 async def get_original_url(shorten_url: str, session: SessionDep) -> RedirectResponse:
+    """Redirect to the original URL based on the shortened URL."""
     original_url = session.exec(
         select(URL).where(URL.shorten_url == shorten_url)
     ).first()
     if not original_url:
         raise HTTPException(status_code=404, detail="Short URL not found")
     return RedirectResponse(url=original_url.url, status_code=307)
-
