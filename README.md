@@ -79,6 +79,10 @@ Here are the API endpoints defined in `main.py` and `router.py`:
   Redirect to the original URL based on the shortened URL.  
   **Response:** HTTP redirect (307) to the original URL.
 
+- **DELETE `/{shorten_url}`**  
+  Delete a URL record based on the shortened URL.  
+  **Response:** JSON with a success message.
+
 The `api/router.py` file defines an endpoint under the `/external` prefix:
 
 - **GET `/external/catfact`**  

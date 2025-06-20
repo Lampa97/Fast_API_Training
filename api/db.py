@@ -20,4 +20,3 @@ def get_session(run_engine=None):
         run_engine = engine
     with Session(run_engine) as session:
         yield session
-
