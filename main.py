@@ -41,4 +41,18 @@ def shorten_url(link: Link, session: SessionDep) -> Link:
     session.refresh(link)
     return link
 
+@app.get("/links/")
+def read_links(
+    session: SessionDep,
+    offset: int = 0,
+    limit: Annotated[int, Query(le=100)] = 100,
+) -> list[Link]:
+    links = session.exec(select(Link).offset(offset).limit(limit)).all()
+    return links
 
+@app.get("/{shorten_url}")
+async def get_original_url(shorten_url: str, session: SessionDep) -> Link:
+    original_url = session.get(Link, shorten_url)
+    if not original_url:
+        raise HTTPException(status_code=404, detail="Short URL not found")
+    return original_url
