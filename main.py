@@ -1,21 +1,27 @@
-from typing import Annotated
-from contextlib import asynccontextmanager
-from fastapi import Depends, FastAPI, HTTPException, Query
+from typing import Annotated, Sequence
+from urllib.parse import urlparse
+from api.router import router
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.responses import RedirectResponse
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
-class Link(SQLModel, table=True):
+
+class URL(SQLModel, table=True):
     id: int = Field(default=None, primary_key=True)
-    url: str = Field(index=True, max_length=256)
+    url: str = Field(index=True, max_length=256, unique=True)
     shorten_url: str | None = Field(default=None, max_length=6)
 
-sqlite_file_name = "links.db"
+
+sqlite_file_name = "urls.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 
 connect_args = {"check_same_thread": False}
 engine = create_engine(sqlite_url, connect_args=connect_args)
 
+
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
+
 
 def get_session():
     with Session(engine) as session:
@@ -24,35 +30,53 @@ def get_session():
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
-@asynccontextmanager
-async def lifespan(app):
+
+app = FastAPI()
+
+
+
+app.include_router(router)
+
+@app.on_event("startup")
+def on_startup():
     create_db_and_tables()
-    yield
-
-app = FastAPI(lifespan=lifespan)
 
 
-@app.post("/")
-def shorten_url(link: Link, session: SessionDep) -> Link:
-    # Simple shortening logic - first 6 characters before the dot
-    link.shorten_url = link.shorten_url or link.url[:6].split('.', 1)[0]
-    session.add(link)
+@app.post("/", status_code=status.HTTP_201_CREATED)
+def shorten_url(url: URL, session: SessionDep) -> URL:
+    existing = session.exec(select(URL).where(URL.url == url.url)).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"URL already exists. Short URL: {existing.shorten_url}",
+        )
+    full_url = url.url
+    domain_url = urlparse(full_url).netloc  # Get the domain part
+    short_url = domain_url.split(".")[0][
+        :6
+    ]  # Take the first 6 characters of the domain
+
+    # If the user passed a short URL, use it; otherwise, assign the generated one
+    url.shorten_url = url.shorten_url or short_url
+
+    session.add(url)
     session.commit()
-    session.refresh(link)
-    return link
+    session.refresh(url)
+    return url
 
-@app.get("/links/")
-def read_links(
-    session: SessionDep,
-    offset: int = 0,
-    limit: Annotated[int, Query(le=100)] = 100,
-) -> list[Link]:
-    links = session.exec(select(Link).offset(offset).limit(limit)).all()
-    return links
+
+@app.get("/")
+def read_urls(session: SessionDep) -> Sequence[URL]:
+    urls = session.exec(select(URL)).all()
+    return urls
+
 
 @app.get("/{shorten_url}")
-async def get_original_url(shorten_url: str, session: SessionDep) -> Link:
-    original_url = session.get(Link, shorten_url)
+async def get_original_url(shorten_url: str, session: SessionDep) -> RedirectResponse:
+    original_url = session.exec(
+        select(URL).where(URL.shorten_url == shorten_url)
+    ).first()
     if not original_url:
         raise HTTPException(status_code=404, detail="Short URL not found")
-    return original_url
+    return RedirectResponse(url=original_url.url, status_code=307)
+
