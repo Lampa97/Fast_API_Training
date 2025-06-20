@@ -20,3 +20,6 @@ lint = [
     "isort>=6.0.1",
     "mypy>=1.16.1",
 ]
+
+[tool.pytest.ini_options]
+addopts = "--cov --cov-report term-missing"
