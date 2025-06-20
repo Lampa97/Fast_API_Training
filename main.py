@@ -5,7 +5,7 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import RedirectResponse
 from sqlmodel import Session, select
 from contextlib import asynccontextmanager
-from api.db import create_db_and_tables, get_session
+from api.db import create_db_and_tables, get_session, engine
 from api.models import URL
 from api.router import router
 
@@ -14,7 +14,7 @@ SessionDep = Annotated[Session, Depends(get_session)]
 @asynccontextmanager
 async def lifespan(app):
     """Lifespan event handler to create the database and tables."""
-    create_db_and_tables()
+    create_db_and_tables(run_engine=engine)
     yield
 
 app = FastAPI(lifespan=lifespan)
@@ -38,6 +38,14 @@ def shorten_url(url: URL, session: SessionDep) -> URL:
 
     # If the user passed a short URL, use it; otherwise, assign the generated one
     url.shorten_url = url.shorten_url or short_url
+    existing_short = session.exec(
+        select(URL).where(URL.shorten_url == url.shorten_url)
+    ).first()
+    if existing_short:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Short URL already exists: {existing_short.shorten_url}",
+        )
 
     session.add(url)
     session.commit()

@@ -22,3 +22,11 @@ def test_url_2():
         "url": "https://example123.com",
         "shorten_url": "ex"
     }
+
+@pytest.fixture
+def test_url_3():
+    """Fixture for another test URL."""
+    return {
+        "url": "https://example1.com",
+        "shorten_url": "ex"
+    }

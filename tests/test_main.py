@@ -50,7 +50,7 @@ def test_not_found():
     response = client.get("/nonexistent")
     assert response.status_code == 404
 
-def test_conflict(test_url_1):
+def test_conflict_url(test_url_1):
     # First request should succeed
     response = client.post("/", json=test_url_1)
     assert response.status_code == 201
@@ -59,6 +59,16 @@ def test_conflict(test_url_1):
     response = client.post("/", json=test_url_1)
     assert response.status_code == 409
     assert "URL already exists" in response.json()["detail"]
+
+def test_conflict_shorten_url(test_url_2, test_url_3):
+    # First request should succeed
+    response = client.post("/", json=test_url_2)
+    assert response.status_code == 201
+
+    # Second request with the same shorten URL should raise a conflict
+    response = client.post("/", json=test_url_3)
+    assert response.status_code == 409
+    assert f"Short URL already exists: {test_url_3['shorten_url']}" in response.json()["detail"]
 
 def test_redirect(test_url_1):
     response = client.post("/", json=test_url_1)
