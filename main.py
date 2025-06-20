@@ -3,36 +3,14 @@ from urllib.parse import urlparse
 from api.router import router
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import RedirectResponse
-from sqlmodel import Field, Session, SQLModel, create_engine, select
-
-
-class URL(SQLModel, table=True):
-    id: int = Field(default=None, primary_key=True)
-    url: str = Field(index=True, max_length=256, unique=True)
-    shorten_url: str | None = Field(default=None, max_length=6)
-
-
-sqlite_file_name = "urls.db"
-sqlite_url = f"sqlite:///{sqlite_file_name}"
-
-connect_args = {"check_same_thread": False}
-engine = create_engine(sqlite_url, connect_args=connect_args)
-
-
-def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
-
-
-def get_session():
-    with Session(engine) as session:
-        yield session
+from sqlmodel import Session, select
+from api.models import URL
+from api.db import create_db_and_tables, get_session
 
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
-
 app = FastAPI()
-
 
 
 app.include_router(router)
