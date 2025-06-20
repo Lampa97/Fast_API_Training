@@ -32,3 +32,13 @@ async def lifespan(app):
 app = FastAPI(lifespan=lifespan)
 
 
+@app.post("/")
+def shorten_url(link: Link, session: SessionDep) -> Link:
+    # Simple shortening logic - first 6 characters before the dot
+    link.shorten_url = link.shorten_url or link.url[:6].split('.', 1)[0]
+    session.add(link)
+    session.commit()
+    session.refresh(link)
+    return link
+
+
