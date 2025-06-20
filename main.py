@@ -4,23 +4,23 @@ from urllib.parse import urlparse
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import RedirectResponse
 from sqlmodel import Session, select
-
+from contextlib import asynccontextmanager
 from api.db import create_db_and_tables, get_session
 from api.models import URL
 from api.router import router
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app):
+    """Lifespan event handler to create the database and tables."""
+    create_db_and_tables()
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 
 app.include_router(router)
-
-
-@app.on_event("startup")
-def on_startup():
-    """Create the database and tables on startup."""
-    create_db_and_tables()
 
 
 @app.post("/", status_code=status.HTTP_201_CREATED)
@@ -34,9 +34,7 @@ def shorten_url(url: URL, session: SessionDep) -> URL:
         )
     full_url = url.url
     domain_url = urlparse(full_url).netloc  # Get the domain part
-    short_url = domain_url.split(".")[0][
-        :6
-    ]  # Take the first 6 characters of the domain
+    short_url = domain_url.split(".")[0][:6]  # Take the first 6 characters of the domain
 
     # If the user passed a short URL, use it; otherwise, assign the generated one
     url.shorten_url = url.shorten_url or short_url
