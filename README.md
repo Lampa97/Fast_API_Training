@@ -29,6 +29,13 @@ Start the application:
 uvicorn main:app --reload
 ```
 
+## Running with Docker
+To run the application using Docker, use the following command:
+```bash
+docker run -d -p 8000:8000 romaniastremskyi/fast_api_training
+```
+
+
 Access the API:
 Open your browser at http://localhost:8000
 API docs available at http://localhost:8000/docs
